@@ -46,7 +46,12 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev || sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+          # webview_go hardcodes webkit2gtk-4.0 in CGO flags;
+          # symlink the 4.1 pkg-config file so it resolves correctly.
+          sudo ln -sf \
+            /usr/lib/x86_64-linux-gnu/pkgconfig/webkit2gtk-4.1.pc \
+            /usr/lib/x86_64-linux-gnu/pkgconfig/webkit2gtk-4.0.pc
       - name: Build
         run: |
           go build -ldflags="-s -w" -o llama-runner-linux-amd64 .
