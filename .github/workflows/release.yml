@@ -16,12 +16,15 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.21'
-      - name: Install TDM-GCC
-        run: |
-          choco install tdm-gcc -y
-          echo "C:\TDM-GCC-64\bin" >> $env:GITHUB_PATH
+      - name: Install MinGW via MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          install: mingw-w64-x86_64-gcc mingw-w64-x86_64-binutils
+          update: false
       - name: Build
         run: |
+          $env:PATH = "C:\msys64\mingw64\bin;" + $env:PATH
           windres -i app.rc -o resource.syso -O coff -F pe-x86-64
           go build -ldflags="-H windowsgui -s -w" -o llama-runner-windows-amd64.exe .
         env:
