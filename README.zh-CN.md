@@ -35,6 +35,12 @@
 
 ---
 
+## 界面预览
+
+![LLaMA Runner](assets/screenshot-cn.png)
+
+---
+
 ## 环境要求
 
 ### 运行时

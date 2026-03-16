@@ -35,6 +35,12 @@ A lightweight desktop GUI for managing and interacting with [llama.cpp](https://
 
 ---
 
+## Screenshot
+
+![LLaMA Runner](assets/screenshot-en.png)
+
+---
+
 ## Requirements
 
 ### Runtime
