@@ -1,0 +1,1309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LLaMA Runner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300;400;500;600;700&family=Geist:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Dark theme (default) ──────────────────────────────────── */
+    :root {
+      --bg:        #0d1117;
+      --surface:   #161b22;
+      --surface2:  #21262d;
+      --surface3:  #2d333b;
+      --border:    #30363d;
+      --border2:   #444c56;
+      --text:      #cdd9e5;
+      --muted:     #768390;
+      --muted2:    #545d68;
+      --green:     #57ab5a;
+      --green-dim: rgba(87,171,90,.12);
+      --amber:     #c69026;
+      --amber-dim: rgba(198,144,38,.12);
+      --blue:      #539bf5;
+      --blue-dim:  rgba(83,155,245,.12);
+      --red:       #e5534b;
+      --red-dim:   rgba(229,83,75,.12);
+      --purple:    #b083f0;
+      --shadow:    rgba(0,0,0,.45);
+      --font:    'Geist Mono', 'Consolas', monospace;
+      --font-ui: 'Geist', 'Segoe UI', system-ui, sans-serif;
+      --r: 4px;
+      --fs: 14px; --fs-sm: 13px; --fs-xs: 12px; --fs-xxs: 11px;
+    }
+
+    /* ── Light theme ───────────────────────────────────────────── */
+    [data-theme="light"] {
+      --bg:        #f6f8fa;
+      --surface:   #ffffff;
+      --surface2:  #f0f2f5;
+      --surface3:  #e4e7ec;
+      --border:    #d0d7de;
+      --border2:   #b0b8c4;
+      --text:      #1f2328;
+      --muted:     #656d76;
+      --muted2:    #8c959f;
+      --green:     #1a7f37;
+      --green-dim: rgba(26,127,55,.1);
+      --amber:     #9a6700;
+      --amber-dim: rgba(154,103,0,.1);
+      --blue:      #0969da;
+      --blue-dim:  rgba(9,105,218,.1);
+      --red:       #cf222e;
+      --red-dim:   rgba(207,34,46,.1);
+      --purple:    #8250df;
+      --shadow:    rgba(0,0,0,.12);
+    }
+
+    html, body { height: 100%; overflow: hidden; }
+    body { font-family: var(--font-ui); background: var(--bg); color: var(--text); font-size: var(--fs); line-height: 1.5; }
+
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+    /* ── theme toggle ──────────────────────────────────────────── */
+    .theme-btn {
+      display: flex; align-items: center; justify-content: center;
+      width: 32px; height: 24px; border-radius: 12px;
+      border: 1px solid var(--border); cursor: pointer;
+      background: var(--surface2); transition: all .2s;
+      position: relative; overflow: hidden;
+      flex-shrink: 0;
+    }
+    .theme-btn:hover { border-color: var(--border2); background: var(--surface3); }
+    .theme-btn svg { transition: transform .3s, opacity .3s; }
+    .theme-btn .icon-sun  { position: absolute; }
+    .theme-btn .icon-moon { position: absolute; }
+    [data-theme="light"] .icon-sun  { opacity: 1; transform: rotate(0deg) scale(1); }
+    [data-theme="light"] .icon-moon { opacity: 0; transform: rotate(90deg) scale(.5); }
+    :root:not([data-theme="light"]) .icon-sun  { opacity: 0; transform: rotate(-90deg) scale(.5); }
+    :root:not([data-theme="light"]) .icon-moon { opacity: 1; transform: rotate(0deg) scale(1); }
+
+    /* ── service-info bar (above IO panel) ─────────────────────── */
+    .svc-info-bar {
+      padding: 8px 12px; border-bottom: 1px solid var(--border);
+      background: var(--surface); flex-shrink: 0;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .svc-info-row {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .svc-info-label {
+      font-size: var(--fs-xxs); color: var(--muted);
+      width: 52px; flex-shrink: 0;
+      text-transform: uppercase; letter-spacing: .08em; font-weight: 600;
+    }
+    .svc-info-value {
+      flex: 1; font-size: var(--fs-xxs); color: var(--text);
+      font-family: var(--font);
+      background: var(--surface2); border: 1px solid var(--border);
+      padding: 2px 8px; border-radius: var(--r);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+    }
+    .svc-info-value.empty {
+      color: var(--muted2); font-style: italic; font-family: var(--font-ui);
+      background: transparent; border-color: transparent;
+    }
+    .copy-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 8px; border-radius: 10px; cursor: pointer;
+      font-size: 10px; border: 1px solid var(--border);
+      background: var(--surface2); color: var(--muted);
+      transition: all .15s; flex-shrink: 0; white-space: nowrap;
+    }
+    .copy-chip:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-dim); }
+    .copy-chip.copied { border-color: var(--green); color: var(--green); background: var(--green-dim); }
+    .copy-chip svg { fill: currentColor; }
+
+
+    .app  { display: flex; flex-direction: column; height: 100vh; }
+    .main { display: flex; flex: 1; overflow: hidden; }
+
+    /* ── topbar ────────────────────────────────────────────────── */
+    .topbar {
+      display: flex; align-items: center;
+      height: 46px; flex-shrink: 0;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+    }
+    .topbar-logo {
+      display: flex; align-items: center; gap: 8px;
+      padding: 0 16px; height: 100%;
+      border-right: 1px solid var(--border);
+      font-size: var(--fs-xs); font-weight: 700;
+      letter-spacing: .18em; color: var(--green);
+      text-transform: uppercase; white-space: nowrap; flex-shrink: 0;
+    }
+    .topbar-logo span { color: var(--muted); font-weight: 400; }
+
+    .svc-strip {
+      display: flex; align-items: center; gap: 10px;
+      flex: 1; padding: 0 16px; height: 100%; justify-content: center;
+    }
+    .svc-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--muted); flex-shrink: 0; transition: background .3s;
+    }
+    .svc-dot.running {
+      background: var(--green);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%,100% { box-shadow: 0 0 3px var(--green); }
+      50%      { box-shadow: 0 0 9px var(--green); }
+    }
+    .svc-addr {
+      font-size: var(--fs-xs); color: var(--muted);
+      background: var(--surface2); border: 1px solid var(--border);
+      padding: 3px 10px; border-radius: var(--r);
+      white-space: nowrap; letter-spacing: .04em; min-width: 120px; text-align: center;
+    }
+    .svc-addr.running { color: var(--green); border-color: var(--green); background: var(--green-dim); }
+    .sep { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
+
+    /* ── buttons ───────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+      padding: 5px 12px; font-family: var(--font); font-size: var(--fs-xs);
+      border: 1px solid var(--border); background: var(--surface2); color: var(--text);
+      cursor: pointer; border-radius: var(--r); transition: all .12s; white-space: nowrap;
+      line-height: 1;
+    }
+    .btn:hover  { background: var(--surface3); border-color: var(--border2); }
+    .btn.green  { border-color: var(--green); color: var(--green); }
+    .btn.green:hover { background: var(--green-dim); }
+    .btn.red    { border-color: var(--red); color: var(--red); }
+    .btn.red:hover   { background: var(--red-dim); }
+    .btn.blue   { border-color: var(--blue); color: var(--blue); }
+    .btn.blue:hover  { background: var(--blue-dim); }
+    .btn:disabled { opacity: .35; cursor: not-allowed; pointer-events: none; }
+    .btn.sm { padding: 3px 9px; font-size: var(--fs-xxs); }
+    .btn.xs { padding: 2px 6px; font-size: var(--fs-xxs); }
+    .btn.icon { padding: 5px 9px; }
+
+    /* SVG icon colours inside buttons */
+    .btn svg { fill: currentColor; flex-shrink: 0; }
+
+    /* ── left panel ─────────────────────────────────────────────── */
+    .left-panel {
+      width: 280px; flex-shrink: 0;
+      display: flex; flex-direction: column;
+      border-right: 1px solid var(--border); background: var(--surface);
+    }
+    .panel-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 7px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+    }
+    .panel-label {
+      font-size: var(--fs-xxs); text-transform: uppercase;
+      letter-spacing: .12em; color: var(--muted); font-weight: 600;
+    }
+    .models-list { flex: 1; overflow-y: auto; }
+    .model-item {
+      display: flex; align-items: center; gap: 7px;
+      padding: 7px 12px; cursor: pointer;
+      border-left: 2px solid transparent;
+      transition: all .1s; user-select: none;
+      border-bottom: 1px solid rgba(48,54,61,.4);
+    }
+    .model-item:hover  { background: var(--surface2); }
+    .model-item.active { border-left-color: var(--blue); background: var(--blue-dim); }
+    .model-item-info   { flex: 1; min-width: 0; }
+    .model-name  { font-size: var(--fs-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .model-id    { font-size: var(--fs-xxs); color: var(--muted); margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .model-size  { font-size: var(--fs-xxs); color: var(--muted2); }
+    .status-badge {
+      flex-shrink: 0; font-size: 10px; padding: 2px 7px;
+      border-radius: 10px; font-weight: 600; letter-spacing: .03em;
+    }
+    .status-badge.loaded   { background: var(--green-dim);  color: var(--green);  border: 1px solid rgba(87,171,90,.3); }
+    .status-badge.unloaded { background: transparent;        color: var(--muted2); border: 1px solid var(--border); }
+    .status-badge.loading  {
+      background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(198,144,38,.3);
+      animation: blink .8s ease-in-out infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+    .models-empty {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; height: 100%; gap: 8px; padding: 24px; text-align: center;
+    }
+    .models-empty-title { font-size: var(--fs-sm); color: var(--muted); }
+    .models-empty-hint  { font-size: var(--fs-xxs); color: var(--muted2); line-height: 1.6; }
+
+    /* ── params panel ───────────────────────────────────────────── */
+    .params-panel {
+      width: 340px; flex-shrink: 0;
+      display: flex; flex-direction: column;
+      border-right: 1px solid var(--border);
+    }
+    .params-header {
+      display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+      padding: 7px 12px; background: var(--surface); border-bottom: 1px solid var(--border);
+    }
+    .params-title { font-size: var(--fs-xs); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .params-actions { display: flex; gap: 4px; flex-shrink: 0; }
+    .params-body  { flex: 1; overflow-y: auto; background: var(--bg); }
+    .params-footer { flex-shrink: 0; padding: 9px 12px; border-top: 1px solid var(--border); background: var(--surface); }
+    .params-empty {
+      display: flex; align-items: center; justify-content: center;
+      height: 100%; color: var(--muted); font-size: var(--fs-sm);
+      text-align: center; padding: 24px; background: var(--bg);
+    }
+
+    /* param groups */
+    .pgroup { border-bottom: 1px solid rgba(48,54,61,.5); }
+    .pgroup-hdr {
+      display: flex; align-items: center; gap: 5px;
+      padding: 6px 12px; cursor: pointer; user-select: none;
+      font-size: var(--fs-xxs); text-transform: uppercase;
+      letter-spacing: .1em; color: var(--muted); transition: color .1s;
+    }
+    .pgroup-hdr:hover { color: var(--text); }
+    .pgroup-arrow { transition: transform .15s; font-size: 10px; }
+    .pgroup.closed .pgroup-arrow  { transform: rotate(-90deg); }
+    .pgroup.closed .pgroup-body   { display: none; }
+    .pgroup-body { padding: 5px 12px 12px; }
+    .field { margin-bottom: 8px; }
+    .field-lbl {
+      display: block; font-size: var(--fs-xxs); color: var(--muted);
+      margin-bottom: 3px; line-height: 1.4;
+    }
+    .field-lbl .flag { color: var(--blue); margin-left: 4px; }
+    .field-hint { font-size: var(--fs-xxs); color: var(--muted2); display: block; margin-top: 1px; }
+    .finput {
+      width: 100%; padding: 5px 8px;
+      background: var(--bg); border: 1px solid var(--border);
+      color: var(--text); font-family: var(--font); font-size: var(--fs-xs);
+      border-radius: var(--r); outline: none; transition: border-color .12s;
+    }
+    .finput:focus { border-color: var(--blue); }
+    .finput::placeholder { color: var(--muted2); opacity: 1; }
+    textarea.finput { resize: vertical; min-height: 52px; }
+    .fselect {
+      width: 100%; padding: 5px 8px;
+      background: var(--bg); border: 1px solid var(--border);
+      color: var(--text); font-family: var(--font); font-size: var(--fs-xs);
+      border-radius: var(--r); outline: none; cursor: pointer;
+    }
+    .fselect option { background: var(--surface2); }
+    .fcheck {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 5px; cursor: pointer;
+    }
+    .fcheck input[type=checkbox] { accent-color: var(--green); cursor: pointer; width: 14px; height: 14px; flex-shrink: 0; }
+    .fcheck label { font-size: var(--fs-xs); cursor: pointer; flex: 1; }
+    .fcheck .cflag { color: var(--muted2); font-size: var(--fs-xxs); margin-left: auto; flex-shrink: 0; }
+    .dual { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+
+    /* ── log panel ──────────────────────────────────────────────── */
+    .log-panel { flex: 1; min-width: 0; display: flex; flex-direction: column; border-right: 1px solid var(--border); }
+    .log-body  { flex: 1; overflow-y: auto; padding: 8px 12px; font-size: var(--fs-xs); line-height: 1.7; background: var(--bg); font-family: var(--font); font-variant-ligatures: none; }
+    .ll { display: block; white-space: pre-wrap; word-break: break-all; }
+    .ll.out  { color: var(--text); }
+    .ll.err  { color: var(--red); }
+    .ll.warn { color: var(--amber); }
+    .ll.sys  { color: var(--blue); }
+
+    /* ── io panel ───────────────────────────────────────────────── */
+    .io-panel  { width: 420px; flex-shrink: 0; display: flex; flex-direction: column; }
+    .io-body   { flex: 1; overflow-y: auto; padding: 6px; background: var(--bg); }
+    .io-empty  {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; height: 100%;
+      color: var(--muted); font-size: var(--fs-sm); text-align: center; gap: 6px;
+    }
+    .io-empty-hint { color: var(--muted2); font-size: var(--fs-xs); }
+    .io-entry { margin-bottom: 5px; border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; }
+    .io-row {
+      display: flex; align-items: center; gap: 6px;
+      padding: 5px 8px; background: var(--surface2);
+      cursor: pointer; transition: background .1s;
+    }
+    .io-row:hover { background: var(--surface3); }
+    .io-method {
+      font-size: var(--fs-xxs); padding: 2px 5px;
+      border-radius: 2px; font-weight: 700; flex-shrink: 0;
+    }
+    .io-method.POST   { background: var(--green-dim);  color: var(--green); }
+    .io-method.GET    { background: var(--blue-dim);   color: var(--blue); }
+    .io-method.PUT,
+    .io-method.PATCH  { background: var(--amber-dim);  color: var(--amber); }
+    .io-method.DELETE { background: var(--red-dim);    color: var(--red); }
+    .io-path     { flex: 1; font-size: var(--fs-xxs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .io-status   { font-size: var(--fs-xxs); font-weight: 600; flex-shrink: 0; }
+    .io-status.ok  { color: var(--green); }
+    .io-status.err { color: var(--red); }
+    .io-dur      { color: var(--amber); font-size: var(--fs-xxs); flex-shrink: 0; }
+    .io-time     { color: var(--muted2); font-size: var(--fs-xxs); flex-shrink: 0; }
+    .io-stream   { font-size: 10px; padding: 1px 4px; border-radius: 2px; background: var(--purple); color: #fff; opacity: .75; flex-shrink: 0; }
+    .io-detail   { display: none; }
+    .io-detail.open { display: block; }
+    .io-section  { padding: 6px 8px; border-top: 1px solid var(--border); }
+    .io-sec-hdr  { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+    .io-sec-lbl  { font-size: var(--fs-xxs); text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+    .copy-btn {
+      font-size: var(--fs-xxs); padding: 1px 7px; cursor: pointer;
+      border: 1px solid var(--border); background: var(--surface2);
+      color: var(--muted); border-radius: var(--r); font-family: var(--font);
+    }
+    .copy-btn:hover { border-color: var(--blue); color: var(--blue); }
+    .copy-btn.copied { border-color: var(--green); color: var(--green); }
+    .io-json {
+      font-size: var(--fs-xxs); line-height: 1.55; color: var(--text);
+      white-space: pre-wrap; word-break: break-all; max-height: 220px; overflow-y: auto;
+      font-family: var(--font);
+    }
+    .jk    { color: var(--green); }  /* keys: green */
+    .jstr  { color: var(--blue); }   /* string values: blue */
+    .jnum  { color: var(--purple); } /* numbers: purple */
+    .jbool { color: var(--amber); }  /* booleans: amber */
+    .jnull { color: var(--red); }    /* null: red */
+
+    /* ── settings modal ─────────────────────────────────────────── */
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.65); display: flex; align-items: center; justify-content: center; z-index: 999; }
+    .overlay.hidden { display: none; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border2);
+      border-radius: 6px; padding: 24px; width: 440px;
+      max-height: 80vh; overflow-y: auto;
+      box-shadow: 0 8px 32px rgba(0,0,0,.5);
+    }
+    .modal-title { font-size: var(--fs-sm); font-weight: 600; margin-bottom: 18px; }
+    .modal-field { margin-bottom: 14px; }
+    .modal-field > label {
+      display: block; font-size: var(--fs-xxs); color: var(--muted);
+      margin-bottom: 4px; text-transform: uppercase; letter-spacing: .08em;
+    }
+    .modal-row { display: flex; gap: 6px; align-items: stretch; }
+    .modal-row .finput { flex: 1; }
+    .modal-footer {
+      display: flex; gap: 8px; justify-content: flex-end;
+      margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border);
+    }
+    .env-table { width: 100%; border-collapse: collapse; }
+    .env-table td { padding: 2px 2px 2px 0; }
+    .env-table .finput { font-size: var(--fs-xxs); padding: 3px 6px; }
+    .env-del { color: var(--red); cursor: pointer; padding: 0 6px; background: none; border: none; font-size: 14px; font-family: var(--font); line-height: 1; }
+    .env-del:hover { color: var(--text); }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-logo">
+      <!-- hex icon -->
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#57ab5a" stroke-width="2">
+        <polygon points="12 2 22 7 22 17 12 22 2 17 2 7"/>
+      </svg>
+      LLaMA <span>Runner</span>
+    </div>
+
+    <div class="svc-strip">
+      <div class="svc-dot" id="svcDot"></div>
+      <div class="svc-addr" id="svcAddr">—</div>
+      <!-- settings -->
+      <button class="btn icon" id="btnSettings" onclick="showSettings()"
+        data-title-i18n="tip_settings" type="button">
+        <svg width="14" height="14" viewBox="0 0 24 24"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+      </button>
+      <div class="sep"></div>
+      <!-- start -->
+      <button class="btn icon green" id="btnSvcStart" onclick="startService()"
+        data-title-i18n="tip_start" type="button">
+        <svg width="12" height="12" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      </button>
+      <!-- stop -->
+      <button class="btn icon red" id="btnSvcStop" onclick="stopService()"
+        data-title-i18n="tip_stop" type="button" disabled>
+        <svg width="12" height="12" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+      </button>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid var(--border);height:100%;flex-shrink:0">
+      <button class="btn sm" onclick="clearLogs()" data-i18n="btn_clear_log" type="button">Clear Log</button>
+      <button class="btn sm" onclick="clearIOActive()" data-i18n="btn_clear_cache" type="button">Clear Cache</button>
+      <div class="sep"></div>
+      <!-- Language selector (populated dynamically from /api/langs) -->
+      <select id="langSelect" onchange="switchLang(this.value)"
+        style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-family:var(--font-ui);font-size:var(--fs-xxs);padding:2px 6px;border-radius:var(--r);cursor:pointer;outline:none">
+      </select>
+      <!-- Theme toggle -->
+      <button class="theme-btn" onclick="toggleTheme()" data-title-i18n="tip_theme" type="button">
+        <!-- sun -->
+        <svg class="icon-sun" width="14" height="14" viewBox="0 0 24 24" fill="none"
+          stroke="var(--amber)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="4"/>
+          <line x1="12" y1="2"  x2="12" y2="5"/>
+          <line x1="12" y1="19" x2="12" y2="22"/>
+          <line x1="2"  y1="12" x2="5"  y2="12"/>
+          <line x1="19" y1="12" x2="22" y2="12"/>
+          <line x1="4.22"  y1="4.22"  x2="6.34"  y2="6.34"/>
+          <line x1="17.66" y1="17.66" x2="19.78" y2="19.78"/>
+          <line x1="4.22"  y1="19.78" x2="6.34"  y2="17.66"/>
+          <line x1="17.66" y1="6.34"  x2="19.78" y2="4.22"/>
+        </svg>
+        <!-- moon -->
+        <svg class="icon-moon" width="13" height="13" viewBox="0 0 24 24" fill="none"
+          stroke="var(--blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- LEFT: model list -->
+    <div class="left-panel">
+      <div class="panel-header">
+        <span class="panel-label" data-i18n="label_models">Models</span>
+        <!-- refresh -->
+        <button class="btn xs" onclick="refreshModels()" data-title-i18n="tip_refresh" type="button">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" focusable="false" viewBox="0 0 12 12">
+            <path fill="none" stroke="currentColor" stroke-linecap="round" d="M10 4c-.8-1.1-2-2.5-4.1-2.5-2.5 0-4.4 2-4.4 4.5s2 4.5 4.4 4.5c1.3 0 2.5-.6 3.3-1.5m1.3-7.5V4c0 .3-.2.5-.5.5H7.5"/>
+          </svg>
+        </button>
+      </div>
+      <div class="models-list" id="modelsList">
+        <div class="models-empty">
+          <div class="models-empty-title" data-i18n="no_models">No models found</div>
+          <div class="models-empty-hint" data-i18n="no_models_hint">Configure a models directory in Settings</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PARAMS -->
+    <div class="params-panel">
+      <div class="params-header" id="paramsHeader" style="display:none">
+        <span class="params-title" id="paramsTitle">—</span>
+        <div class="params-actions">
+          <button class="btn sm green" id="btnLoad"   onclick="loadActiveModel()"   data-i18n="btn_load"   disabled type="button">Load</button>
+          <button class="btn sm red"   id="btnUnload" onclick="unloadActiveModel()" data-i18n="btn_unload" disabled type="button">Unload</button>
+        </div>
+      </div>
+      <div id="paramsContent" style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0">
+        <div class="params-empty" data-i18n="params_empty">Select a model to configure</div>
+      </div>
+    </div>
+
+    <!-- LOG -->
+    <div class="log-panel">
+      <div class="panel-header">
+        <span class="panel-label" data-i18n="label_log">Log</span>
+        <span id="logCount" style="font-size:var(--fs-xxs);color:var(--muted2)">0</span>
+      </div>
+      <div class="log-body" id="logBody"></div>
+    </div>
+
+    <!-- IO -->
+    <div class="io-panel">
+      <div class="panel-header">
+        <span class="panel-label" data-i18n="label_io">I/O</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span id="ioCount" style="font-size:var(--fs-xxs);color:var(--muted2)">0</span>
+        </div>
+      </div>
+      <!-- Service URL + model alias copy bar -->
+      <div class="svc-info-bar">
+        <div class="svc-info-row">
+          <span class="svc-info-label" data-i18n="info_url">URL</span>
+          <span class="svc-info-value" id="infoUrl">—</span>
+          <button class="copy-chip" onclick="copyInfo('infoUrl',this)" type="button">
+            <svg width="10" height="10" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+            <span data-i18n="btn_copy">Copy</span>
+          </button>
+        </div>
+        <div class="svc-info-row">
+          <span class="svc-info-label" data-i18n="info_model">Model</span>
+          <span class="svc-info-value empty" id="infoModel" data-i18n="info_model_none">—</span>
+          <button class="copy-chip" onclick="copyInfo('infoModel',this)" type="button">
+            <svg width="10" height="10" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+            <span data-i18n="btn_copy">Copy</span>
+          </button>
+        </div>
+      </div>
+      <div class="io-body" id="ioBody">
+        <div class="io-empty">
+          <span data-i18n="io_empty">No requests recorded</span>
+          <span class="io-empty-hint" data-i18n="io_empty_hint">Requests via /v1/ are logged here</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="overlay hidden" id="overlaySettings">
+  <div class="modal">
+    <div class="modal-title" data-i18n="settings_title">Settings</div>
+
+    <div class="modal-field">
+      <label data-i18n="lbl_host">Listen Host</label>
+      <input class="finput" id="stHost" placeholder="127.0.0.1" type="text">
+    </div>
+    <div class="modal-field">
+      <label data-i18n="lbl_port">Port</label>
+      <input class="finput" id="stPort" placeholder="8080" type="text">
+    </div>
+    <div class="modal-field">
+      <label data-i18n="lbl_models_dir">Models Directory</label>
+      <div class="modal-row">
+        <input class="finput" id="stModelsDir" readonly
+          style="cursor:default;opacity:.8" type="text"
+          placeholder="—" tabindex="-1">
+        <button class="btn sm blue" onclick="browseModelsDir()" data-i18n="btn_browse" type="button">Browse</button>
+      </div>
+      <div id="stModelsDirHint" style="font-size:var(--fs-xxs);color:var(--muted2);margin-top:3px"></div>
+    </div>
+    <div class="modal-field">
+      <label data-i18n="lbl_env">Environment Variables</label>
+      <table class="env-table"><tbody id="stEnvBody"></tbody></table>
+      <button class="btn sm" style="margin-top:6px" onclick="addSettingsEnv()" type="button" data-i18n="btn_add_env">+ Add Variable</button>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn" onclick="hideSettings()" data-i18n="btn_cancel" type="button">Cancel</button>
+      <button class="btn green" onclick="saveSettings()" data-i18n="btn_save" type="button">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+// ══════════════════════════════════════════════════════════════════════════════
+// i18n
+// ══════════════════════════════════════════════════════════════════════════════
+let T = {};
+let currentLang = 'en_us';
+
+async function loadLang(lang) {
+  try {
+    const r = await fetch(`/i18n/${lang}.json`);
+    if (!r.ok) throw new Error(r.status);
+    T = await r.json();
+    currentLang = lang;
+    localStorage.setItem('lang', lang);
+  } catch (e) { return; }
+  const sel = document.getElementById('langSelect');
+  if (sel && sel.value !== lang) sel.value = lang;
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-title-i18n]').forEach(el => { el.title = t(el.dataset.titleI18n); });
+  renderModelsList();
+  renderParams();
+  updateSvcUI();
+  updateInfoBar();
+}
+function t(k) { return T[k] || k; }
+function switchLang(lang) { loadLang(lang); }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// State
+// ══════════════════════════════════════════════════════════════════════════════
+let models        = [];       // GGUFModel[]
+let activeModelID = null;     // model_id of selected model
+let svcStatus     = { running: false, host: '', port: '' };
+let logLines      = [];
+let logChars      = 0;
+const MAX_LOG_CHARS = 200_000;
+let logSrc = null, ioSrc = null, statusSrc = null;
+let ioEntries     = [];   // single global list
+let ioSeen        = new Set();
+let settingsEnv   = [];
+let saveTimer     = null;
+let pollTimer     = null;
+
+// pathStore allows onclick handlers to reference paths by numeric index,
+// avoiding all HTML-attribute escaping issues.
+const pathStore = [];
+function pidx(val) {
+  let i = pathStore.indexOf(val);
+  if (i < 0) { i = pathStore.length; pathStore.push(val); }
+  return i;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Theme
+// ══════════════════════════════════════════════════════════════════════════════
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('theme', theme);
+}
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme');
+  applyTheme(current === 'light' ? 'dark' : 'light');
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Language selector (dynamic from /api/langs)
+// ══════════════════════════════════════════════════════════════════════════════
+async function loadLangs() {
+  try {
+    const langs = await api.get('/api/langs');
+    const sel = document.getElementById('langSelect');
+    if (!sel) return;
+    sel.innerHTML = Object.entries(langs)
+      .map(([label, file]) => `<option value="${esc(file)}">${esc(label)}</option>`)
+      .join('');
+    const saved = localStorage.getItem('lang') || 'en_us';
+    sel.value = saved;
+    // If saved lang not in list, pick first
+    if (!sel.value) sel.selectedIndex = 0;
+  } catch(e) {
+    // Fallback to hardcoded options if API fails
+    const sel = document.getElementById('langSelect');
+    if (sel) sel.innerHTML = '<option value="en_us">EN</option><option value="zh_cn">ZH</option>';
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Service info bar
+// ══════════════════════════════════════════════════════════════════════════════
+function updateInfoBar() {
+  const urlEl   = document.getElementById('infoUrl');
+  const modelEl = document.getElementById('infoModel');
+  if (!urlEl || !modelEl) return;
+
+  if (svcStatus.running && svcStatus.host && svcStatus.port) {
+    urlEl.textContent = `http://${svcStatus.host}:${svcStatus.port}`;
+    urlEl.classList.remove('empty');
+  } else {
+    urlEl.textContent = t('info_svc_not_running');
+    urlEl.classList.add('empty');
+  }
+
+  const m = getActiveModel();
+  if (m) {
+    // Show alias if set, otherwise model_id
+    const label = (m.alias && m.alias !== m.model_id) ? m.alias : m.model_id;
+    modelEl.textContent = label;
+    modelEl.classList.remove('empty');
+  } else {
+    modelEl.textContent = t('info_model_none');
+    modelEl.classList.add('empty');
+  }
+}
+
+function copyInfo(elId, btn) {
+  const el = document.getElementById(elId);
+  if (!el || el.classList.contains('empty')) return;
+  navigator.clipboard.writeText(el.textContent).then(() => {
+    const span = btn.querySelector('[data-i18n]');
+    if (span) { span.textContent = t('btn_copied'); }
+    btn.classList.add('copied');
+    setTimeout(() => {
+      if (span) span.textContent = t('btn_copy');
+      btn.classList.remove('copied');
+    }, 1500);
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════════
+// API helpers  (must be defined before init / loadLangs use it)
+// ══════════════════════════════════════════════════════════════════════════════
+const api = {
+  get:  url       => fetch(url).then(r => r.json()),
+  post: (url, d)  => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d) }).then(r => r.json()),
+  put:  (url, d)  => fetch(url, { method: 'PUT',  headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(d) }).then(r => r.json()),
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Init
+// ══════════════════════════════════════════════════════════════════════════════
+async function init() {
+  // Apply saved theme before anything renders
+  applyTheme(localStorage.getItem('theme') || 'dark');
+
+  await loadLangs();
+  const lang = localStorage.getItem('lang') || 'en_us';
+  await loadLang(lang);
+
+  startStatusSSE();
+  startLogSSE();
+  startIOSSE();
+  await refreshModels();
+  startPoll();
+}
+// ══════════════════════════════════════════════════════════════════════════════
+// Service status SSE
+// ══════════════════════════════════════════════════════════════════════════════
+function startStatusSSE() {
+  if (statusSrc) statusSrc.close();
+  statusSrc = new EventSource('/api/status-stream');
+  statusSrc.onmessage = e => {
+    svcStatus = JSON.parse(e.data);
+    updateSvcUI();
+  };
+  statusSrc.onerror = () => setTimeout(startStatusSSE, 3000);
+}
+
+function updateSvcUI() {
+  const dot   = document.getElementById('svcDot');
+  const addr  = document.getElementById('svcAddr');
+  const bSt   = document.getElementById('btnSvcStart');
+  const bSp   = document.getElementById('btnSvcStop');
+  if (svcStatus.running) {
+    dot.className  = 'svc-dot running';
+    addr.className = 'svc-addr running';
+    addr.textContent = `${svcStatus.host}:${svcStatus.port}`;
+    if (bSt) bSt.disabled = true;
+    if (bSp) bSp.disabled = false;
+  } else {
+    dot.className  = 'svc-dot';
+    addr.className = 'svc-addr';
+    addr.textContent = t('status_stopped');
+    if (bSt) bSt.disabled = false;
+    if (bSp) bSp.disabled = true;
+  }
+  updateActionButtons();
+  updateInfoBar();
+}
+
+async function startService() {
+  document.getElementById('btnSvcStart').disabled = true;
+  // Clear client-side log and IO state before starting a new session.
+  clearLogs();
+  clearIOActive();
+  const r = await api.post('/api/service/start', {});
+  if (r.error) {
+    appendLog(`[SYS] ${r.error}`);
+    document.getElementById('btnSvcStart').disabled = false;
+  }
+}
+async function stopService() {
+  document.getElementById('btnSvcStop').disabled = true;
+  const r = await api.post('/api/service/stop', {});
+  if (r.error) {
+    appendLog(`[SYS] ${r.error}`);
+    document.getElementById('btnSvcStop').disabled = false;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Model list polling — refreshes status from /api/models every 3 s
+// ══════════════════════════════════════════════════════════════════════════════
+function startPoll() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(refreshModels, 3000);
+}
+
+async function refreshModels() {
+  try { models = await api.get('/api/models'); } catch { return; }
+  renderModelsList();
+  updateActionButtons();
+}
+
+function getActiveModel() {
+  return models.find(m => m.model_id === activeModelID) || null;
+}
+
+function renderModelsList() {
+  const el = document.getElementById('modelsList');
+  if (!models || models.length === 0) {
+    el.innerHTML = `<div class="models-empty">
+      <div class="models-empty-title">${t('no_models')}</div>
+      <div class="models-empty-hint">${t('no_models_hint')}</div>
+    </div>`;
+    return;
+  }
+  el.innerHTML = models.map(m => {
+    const active = m.model_id === activeModelID ? 'active' : '';
+    const st     = m.status || 'unloaded';
+    const size   = m.size_mb > 1024 ? `${(m.size_mb/1024).toFixed(1)} GB` : `${m.size_mb} MB`;
+    const mmTag  = m.mmproj_path ? `<span style="font-size:9px;padding:1px 5px;border-radius:8px;background:var(--purple-dim,rgba(176,131,240,.15));color:var(--purple);border:1px solid rgba(176,131,240,.3);margin-left:4px">MM</span>` : '';
+    return `<div class="model-item ${active}" onclick="selectModel(pathStore[${pidx(m.model_id)}])">
+      <div class="model-item-info">
+        <div class="model-name">${esc(m.name)}${mmTag}</div>
+        ${m.model_id !== m.name ? `<div class="model-id">${esc(m.model_id)}</div>` : ''}
+        <div class="model-size">${size}</div>
+      </div>
+      <span class="status-badge ${st}">${t('status_' + st)}</span>
+    </div>`;
+  }).join('');
+}
+
+function selectModel(modelID) {
+  activeModelID = modelID;
+  renderModelsList();
+  renderParams();
+  updateActionButtons();
+  updateInfoBar();
+}
+
+function updateActionButtons() {
+  const bLoad   = document.getElementById('btnLoad');
+  const bUnload = document.getElementById('btnUnload');
+  const bSave   = document.getElementById('btnSaveCfg');
+  const hdr     = document.getElementById('paramsHeader');
+  const running = svcStatus.running;
+
+  if (bSave) bSave.disabled = running;
+
+  if (!activeModelID) {
+    if (bLoad)   bLoad.disabled   = true;
+    if (bUnload) bUnload.disabled = true;
+    return;
+  }
+  const m      = getActiveModel();
+  const loaded = m && m.status === 'loaded';
+  if (hdr) hdr.style.display = 'flex';
+  if (bLoad)   bLoad.disabled   = !running || loaded;
+  if (bUnload) bUnload.disabled = !running || !loaded;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Params form
+// ══════════════════════════════════════════════════════════════════════════════
+function renderParams() {
+  const content = document.getElementById('paramsContent');
+  const hdr     = document.getElementById('paramsHeader');
+
+  if (!activeModelID) {
+    if (hdr) hdr.style.display = 'none';
+    content.innerHTML = `<div class="params-empty">${t('params_empty')}</div>`;
+    return;
+  }
+  const m = getActiveModel();
+  if (hdr) {
+    hdr.style.display = 'flex';
+    document.getElementById('paramsTitle').textContent = m ? m.name : activeModelID;
+  }
+  const path   = m ? encodeURIComponent(m.path)        : '';
+  const mmproj = m ? encodeURIComponent(m.mmproj_path || '') : '';
+  const subdir = m && m.in_subdir ? '1' : '0';
+  api.get(`/api/models/config?id=${encodeURIComponent(activeModelID)}&path=${path}&mmproj=${mmproj}&subdir=${subdir}`)
+    .then(cfg => buildParamsForm(cfg, content));
+}
+
+function buildParamsForm(cfg, container) {
+  // Load-time parameters — written to presets.ini, applied when the model loads.
+  const loadGroups = [
+    { id: 'load', key: 'grp_load', fields: [
+      { id: 'ngl',         type: 'text',   flag: '-ngl',          key: 'f_ngl',         ph: 'ph_ngl',         hint: 'h_ngl' },
+      { id: 'ctx_size',    type: 'text',   flag: '-c',            key: 'f_ctx',         ph: 'ph_ctx',         hint: 'h_ctx' },
+    ]},
+    { id: 'mem', key: 'grp_mem', fields: [
+      { id: 'no_mmap',     type: 'check',  flag: '--no-mmap',     key: 'f_no_mmap',     hint: 'h_no_mmap' },
+      { id: 'mlock',       type: 'check',  flag: '--mlock',       key: 'f_mlock',       hint: 'h_mlock' },
+      { id: 'kv_offload',  type: 'check',  flag: '--kv-offload',  key: 'f_kv_offload',  hint: 'h_kv_offload' },
+      { id: 'unified_kv',  type: 'check',  flag: '--kv-unified',  key: 'f_unified_kv',  hint: 'h_unified_kv' },
+    ]},
+    { id: 'perf', key: 'grp_perf', fields: [
+      { id: 'flash_attn',  type: 'check',  flag: '-fa',           key: 'f_flash',       hint: 'h_flash' },
+      { id: 'batch_size',  type: 'text',   flag: '-b',            key: 'f_batch',       ph: 'ph_batch',       hint: 'h_batch' },
+      { id: 'ubatch_size', type: 'text',   flag: '-ub',           key: 'f_ubatch',      ph: 'ph_ubatch',      hint: 'h_ubatch' },
+      { id: 'cache_type_k',type: 'select', flag: '-ctk',          key: 'f_ctk',         hint: 'h_ctk',
+        opts: [['','default'],['f16','f16'],['q8_0','q8_0'],['q4_0','q4_0'],['iq4_nl','iq4_nl']] },
+      { id: 'cache_type_v',type: 'select', flag: '-ctv',          key: 'f_ctv',         hint: 'h_ctv',
+        opts: [['','default'],['f16','f16'],['q8_0','q8_0'],['q4_0','q4_0']] },
+      { id: 'cache_reuse', type: 'text',   flag: '--cache-reuse', key: 'f_cache_reuse', ph: 'ph_cache_reuse', hint: 'h_cache_reuse' },
+      { id: 'n_parallel',  type: 'text',   flag: '-np',           key: 'f_n_parallel',  ph: 'ph_n_parallel',  hint: 'h_n_parallel' },
+      { id: 'threads',     type: 'text',   flag: '-t',            key: 'f_threads',     ph: 'ph_threads',     hint: 'h_threads' },
+      { id: 'threads_batch',type:'text',   flag: '-tb',           key: 'f_threads_batch',ph:'ph_threads_batch',hint: 'h_threads_batch' },
+      { id: 'seed',        type: 'text',   flag: '--seed',        key: 'f_seed',        ph: 'ph_seed',        hint: 'h_seed' },
+    ]},
+    { id: 'infer_load', key: 'grp_infer_load', fields: [
+      { id: 'jinja',             type: 'check',  flag: '--jinja',            key: 'f_jinja',  hint: 'h_jinja' },
+      { id: 'reasoning_format',  type: 'select', flag: '--reasoning-format', key: 'f_rf',     hint: 'h_rf',
+        opts: [['','(none)'],['deepseek','deepseek'],['auto','auto'],['none','none']] },
+      { id: 'reasoning_budget',  type: 'text',   flag: '--reasoning-budget', key: 'f_rb',     ph: 'ph_rb',  hint: 'h_rb' },
+    ]},
+  ];
+
+  // Inference-time parameters — sent per-request in /v1/chat/completions body.
+  // These are stored as UI defaults; they do NOT affect /models/load.
+  const inferGroups = [
+    { id: 'sampling', key: 'grp_sampling', fields: [
+      { id: 'temperature', type: 'text', flag: '--temp',   key: 'f_temp',  ph: 'ph_temp',  hint: 'h_temp' },
+      { id: 'top_p',       type: 'text', flag: '--top-p',  key: 'f_topp',  ph: 'ph_topp',  hint: 'h_topp' },
+      { id: 'top_k',       type: 'text', flag: '--top-k',  key: 'f_topk',  ph: 'ph_topk',  hint: 'h_topk' },
+      { id: 'min_p',       type: 'text', flag: '--min-p',  key: 'f_minp',  ph: 'ph_minp',  hint: 'h_minp' },
+    ]},
+  ];
+
+  let h = `<div class="params-body" id="paramsBody">`;
+
+  // Identity — model_id is read-only internal; alias is the user-visible name
+  h += `<div style="padding:8px 12px 6px;border-bottom:1px solid var(--border)">
+    <input type="hidden" id="f_model_id" value="${esc(cfg.model_id||'')}">
+    <div class="field">
+      <label class="field-lbl">${t('f_alias')}
+        <span class="flag"> --alias</span>
+        <span class="field-hint">${t('h_alias')}</span>
+      </label>
+      <input class="finput" id="f_alias"
+        value="${esc(cfg.alias || cfg.model_id || '')}"
+        placeholder="${tAttr('ph_alias')}" oninput="schedSave()" type="text">
+    </div>
+    ${cfg.mmproj_path ? `<div class="field">
+      <label class="field-lbl">${t('f_mmproj')}</label>
+      <input class="finput" value="${esc(cfg.mmproj_path)}" readonly
+        style="opacity:.55;cursor:default;font-size:var(--fs-xxs)" type="text">
+    </div>` : ''}
+  </div>`;
+
+  // Section divider: load-time params
+  h += `<div style="padding:5px 12px 3px;background:var(--surface);border-bottom:1px solid var(--border)">
+    <span style="font-size:var(--fs-xxs);text-transform:uppercase;letter-spacing:.1em;color:var(--blue)">${t('section_load_params')}</span>
+    <span style="font-size:var(--fs-xxs);color:var(--muted2);margin-left:6px">${t('section_load_params_hint')}</span>
+  </div>`;
+
+  for (const g of loadGroups) {
+    h += `<div class="pgroup" id="pg_${g.id}">
+      <div class="pgroup-hdr" onclick="toggleGroup('${g.id}')">
+        <span class="pgroup-arrow">&#9660;</span>${t(g.key)}
+      </div><div class="pgroup-body">`;
+    for (const f of g.fields) h += renderField(f, cfg);
+    h += `</div></div>`;
+  }
+
+  h += `<div class="pgroup" id="pg_extra">
+    <div class="pgroup-hdr" onclick="toggleGroup('extra')">
+      <span class="pgroup-arrow">&#9660;</span>${t('grp_extra')}
+    </div>
+    <div class="pgroup-body">
+      <div class="field">
+        <label class="field-lbl">${t('f_extra_args')}</label>
+        <textarea class="finput" id="f_extra_args" rows="2"
+          placeholder="${tAttr('ph_extra_args')}"
+          oninput="schedSave()">${esc(cfg.extra_args||'')}</textarea>
+      </div>
+    </div>
+  </div>`;
+
+  // Section divider: inference-time params
+  h += `<div style="padding:5px 12px 3px;background:var(--surface);border-bottom:1px solid var(--border);margin-top:4px">
+    <span style="font-size:var(--fs-xxs);text-transform:uppercase;letter-spacing:.1em;color:var(--amber)">${t('section_infer_params')}</span>
+    <span style="font-size:var(--fs-xxs);color:var(--muted2);margin-left:6px">${t('section_infer_params_hint')}</span>
+  </div>`;
+
+  for (const g of inferGroups) {
+    h += `<div class="pgroup" id="pg_${g.id}">
+      <div class="pgroup-hdr" onclick="toggleGroup('${g.id}')">
+        <span class="pgroup-arrow">&#9660;</span>${t(g.key)}
+      </div><div class="pgroup-body">`;
+    for (const f of g.fields) h += renderField(f, cfg);
+    h += `</div></div>`; // close last pgroup + pgroup-body
+  }
+
+  h += `</div>`; // close params-body
+
+  container.innerHTML = h + `<div class="params-footer">
+    <button class="btn green" id="btnSaveCfg" onclick="saveCfg()"
+      data-title-i18n="tip_save_cfg" type="button" style="width:100%;padding:6px;justify-content:center">${t('btn_save')}</button>
+  </div>`;
+}
+
+function renderField(f, cfg) {
+  const val  = cfg[f.id];
+  const lbl  = t(f.key);
+  const ph   = f.ph   ? tAttr(f.ph)   : '';
+  const hint = f.hint ? t(f.hint)     : '';
+  let h = '<div class="field">';
+  if (f.type === 'check') {
+    h += `<div class="fcheck">
+      <input type="checkbox" id="f_${f.id}" ${val ? 'checked' : ''} onchange="schedSave()">
+      <label for="f_${f.id}">${lbl}</label>
+      <span class="cflag">${f.flag}</span>
+    </div>`;
+    if (hint) h += `<span class="field-hint">${hint}</span>`;
+  } else if (f.type === 'select') {
+    const opts = (f.opts||[]).map(([v,l]) => `<option value="${v}"${val===v?' selected':''}>${l}</option>`).join('');
+    h += `<label class="field-lbl">${lbl}<span class="flag"> ${f.flag}</span>
+      ${hint ? `<span class="field-hint">${hint}</span>` : ''}
+    </label>
+    <select class="fselect" id="f_${f.id}" onchange="schedSave()">${opts}</select>`;
+  } else {
+    h += `<label class="field-lbl">${lbl}<span class="flag"> ${f.flag}</span>
+      ${hint ? `<span class="field-hint">${hint}</span>` : ''}
+    </label>
+    <input type="text" class="finput" id="f_${f.id}" value="${esc(val||'')}" placeholder="${ph}" oninput="schedSave()">`;
+  }
+  return h + '</div>';
+}
+
+function tAttr(k) { return t(k).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function toggleGroup(id) {
+  document.getElementById(`pg_${id}`)?.classList.toggle('closed');
+}
+
+function collectForm() {
+  const m   = getActiveModel();
+  const cfg = {
+    model_path:  m ? m.path              : '',
+    mmproj_path: m ? (m.mmproj_path||'') : '',
+    model_id:    (document.getElementById('f_model_id')||{}).value || activeModelID,
+    in_subdir:   m ? !!m.in_subdir       : false,
+    alias:       (document.getElementById('f_alias')||{}).value || '',
+  };
+  ['ngl','ctx_size','batch_size','ubatch_size','cache_type_k','cache_type_v',
+   'cache_reuse','n_parallel','threads','threads_batch','seed',
+   'reasoning_format','reasoning_budget',
+   'temperature','top_p','top_k','min_p'].forEach(id => {
+    const el = document.getElementById(`f_${id}`);
+    if (el) cfg[id] = el.value;
+  });
+  ['no_mmap','mlock','kv_offload','unified_kv','flash_attn','jinja'].forEach(id => {
+    const el = document.getElementById(`f_${id}`);
+    if (el) cfg[id] = el.checked;
+  });
+  const ea = document.getElementById('f_extra_args');
+  if (ea) cfg.extra_args = ea.value;
+  return cfg;
+}
+
+function schedSave() {
+  if (saveTimer) clearTimeout(saveTimer);
+  // Do not auto-save while the service is running; params take effect on
+  // next server start via presets.ini, and the button is already disabled.
+  if (svcStatus.running) return;
+  saveTimer = setTimeout(() => {
+    if (!activeModelID) return;
+    api.put('/api/models/config', collectForm()).catch(() => {});
+  }, 800);
+}
+
+async function saveCfg() {
+  if (!activeModelID) return;
+  await api.put('/api/models/config', collectForm());
+  const btn = document.getElementById('btnSaveCfg');
+  if (btn) { btn.textContent = t('saved'); setTimeout(() => { btn.textContent = t('btn_save'); }, 1200); }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Load / Unload
+// ══════════════════════════════════════════════════════════════════════════════
+async function loadActiveModel() {
+  if (!activeModelID || !svcStatus.running) return;
+  const cfg = collectForm();
+  await api.put('/api/models/config', cfg);
+  const m = getActiveModel();
+  if (m) { m.status = 'loading'; renderModelsList(); }
+  updateActionButtons();
+  const r = await api.post('/api/models/load', cfg);
+  if (r.error) appendLog(`[SYS] ${r.error}`);
+  await refreshModels();
+}
+
+async function unloadActiveModel() {
+  if (!activeModelID || !svcStatus.running) return;
+  const alias = (document.getElementById('f_alias')||{}).value || '';
+  const r = await api.post('/api/models/unload', { model_id: activeModelID, alias });
+  if (r.error) appendLog(`[SYS] ${r.error}`);
+  await refreshModels();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Settings modal
+// ══════════════════════════════════════════════════════════════════════════════
+async function showSettings() {
+  const s = await api.get('/api/settings');
+  document.getElementById('stHost').value     = s.service_host || '127.0.0.1';
+  document.getElementById('stPort').value     = s.service_port || '8080';
+  document.getElementById('stModelsDir').value = s.models_dir  || '';
+  settingsEnv = (s.env_vars || []).map(e => ({...e}));
+  renderSettingsEnv();
+  document.getElementById('overlaySettings').classList.remove('hidden');
+}
+function hideSettings() {
+  document.getElementById('overlaySettings').classList.add('hidden');
+}
+function renderSettingsEnv() {
+  document.getElementById('stEnvBody').innerHTML = settingsEnv.map((ev, i) =>
+    `<tr>
+      <td style="width:44%"><input class="finput" value="${esc(ev.key)}" placeholder="KEY" oninput="settingsEnv[${i}].key=this.value" type="text"></td>
+      <td style="width:48%"><input class="finput" value="${esc(ev.value)}" placeholder="VALUE" oninput="settingsEnv[${i}].value=this.value" type="text"></td>
+      <td><button class="env-del" onclick="settingsEnv.splice(${i},1);renderSettingsEnv()" type="button">&#215;</button></td>
+    </tr>`
+  ).join('');
+}
+function addSettingsEnv() {
+  settingsEnv.push({ key: '', value: '' });
+  renderSettingsEnv();
+}
+async function browseModelsDir() {
+  const r = await api.get('/api/browse-folder');
+  if (!r.path) return;
+  document.getElementById('stModelsDir').value = r.path;
+  const hint = document.getElementById('stModelsDirHint');
+  if (hint) hint.textContent = t('lbl_models_dir_updating');
+  // Immediately persist and rebuild presets.ini so the new dir takes effect.
+  await api.put('/api/settings', {
+    service_host: document.getElementById('stHost').value.trim() || '127.0.0.1',
+    service_port: document.getElementById('stPort').value.trim() || '8080',
+    models_dir:   r.path,
+    env_vars:     settingsEnv.filter(e => e.key.trim()),
+  });
+  if (hint) hint.textContent = t('lbl_models_dir_updated');
+  setTimeout(() => { if (hint) hint.textContent = ''; }, 2000);
+  await refreshModels();
+}
+
+async function saveSettings() {
+  await api.put('/api/settings', {
+    service_host: document.getElementById('stHost').value.trim() || '127.0.0.1',
+    service_port: document.getElementById('stPort').value.trim() || '8080',
+    models_dir:   document.getElementById('stModelsDir').value.trim(),
+    env_vars:     settingsEnv.filter(e => e.key.trim()),
+  });
+  hideSettings();
+  await refreshModels();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// IO — single unified stream (no per-model tabs)
+// ══════════════════════════════════════════════════════════════════════════════
+function clearIOActive() {
+  fetch('/api/io/clear', { method: 'POST' });
+  ioEntries = [];
+  ioSeen = new Set();
+  document.getElementById('ioBody').innerHTML = `<div class="io-empty">
+    <span>${t('io_empty')}</span>
+    <span class="io-empty-hint">${t('io_empty_hint')}</span>
+  </div>`;
+  updateIOCount();
+}
+
+function updateIOCount() {
+  document.getElementById('ioCount').textContent = ioEntries.length;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Log SSE
+// ══════════════════════════════════════════════════════════════════════════════
+function startLogSSE() {
+  if (logSrc) logSrc.close();
+  logSrc = new EventSource('/api/logs');
+  logSrc.onmessage = e => appendLog(JSON.parse(e.data));
+  logSrc.onerror   = () => setTimeout(startLogSSE, 2000);
+}
+function appendLog(raw) {
+  logLines.push(raw); logChars += raw.length;
+  while (logChars > MAX_LOG_CHARS && logLines.length) { logChars -= logLines[0].length; logLines.shift(); }
+  const body = document.getElementById('logBody');
+  const cls  = /\]\s+ERR\s/.test(raw) ? 'err' : /\]\s+WRN\s/.test(raw) ? 'warn' : /\]\s+SYS\s/.test(raw) ? 'sys' : 'out';
+  const span = document.createElement('span');
+  span.className = `ll ${cls}`;
+  span.textContent = raw;
+  body.appendChild(span);
+  body.appendChild(document.createTextNode('\n'));
+  if (body.scrollHeight - body.scrollTop - body.clientHeight < 120) body.scrollTop = body.scrollHeight;
+  document.getElementById('logCount').textContent = logLines.length;
+}
+function clearLogs() {
+  logLines = []; logChars = 0;
+  document.getElementById('logBody').innerHTML = '';
+  document.getElementById('logCount').textContent = 0;
+  fetch('/api/logs/clear', { method: 'POST' });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// IO SSE — single global stream
+// ══════════════════════════════════════════════════════════════════════════════
+function startIOSSE() {
+  if (ioSrc) ioSrc.close();
+  ioSrc = new EventSource('/api/io');
+  ioSrc.onmessage = e => {
+    const entry = JSON.parse(e.data);
+    if (ioSeen.has(entry.id)) return;
+    ioSeen.add(entry.id);
+    ioEntries.unshift(entry);
+    if (ioEntries.length > 500) ioEntries.length = 500;
+    appendIOEntry(entry, true);
+    updateIOCount();
+  };
+  ioSrc.onerror = () => setTimeout(startIOSSE, 2000);
+}
+
+function appendIOEntry(entry, prepend = true) {
+  ioSeen.add(entry.id);
+  const body = document.getElementById('ioBody');
+  body.querySelector('.io-empty')?.remove();
+
+  const ok  = entry.status >= 200 && entry.status < 300;
+  const div = document.createElement('div');
+  div.className = 'io-entry';
+  div.id = `ioe_${entry.id}`;
+  div.innerHTML = `
+    <div class="io-row" onclick="toggleIO('${entry.id}')">
+      <span class="io-method ${entry.method||'GET'}">${entry.method}</span>
+      <span class="io-path">${esc(entry.path)}</span>
+      <span class="io-status ${ok?'ok':'err'}">${entry.status}</span>
+      <span class="io-dur">${entry.duration}</span>
+      ${entry.stream ? `<span class="io-stream">${t('stream')}</span>` : ''}
+      <span class="io-time">${entry.time}</span>
+    </div>
+    <div class="io-detail" id="iod_${entry.id}">
+      <div class="io-section">
+        <div class="io-sec-hdr">
+          <span class="io-sec-lbl">${t('io_req')}</span>
+          <button class="copy-btn" onclick="copyPre('req_${entry.id}',this)" type="button">${t('btn_copy')}</button>
+        </div>
+        <pre class="io-json" id="req_${entry.id}">${syntaxHL(entry.request)}</pre>
+      </div>
+      <div class="io-section">
+        <div class="io-sec-hdr">
+          <span class="io-sec-lbl">${t('io_res')}</span>
+          <button class="copy-btn" onclick="copyPre('res_${entry.id}',this)" type="button">${t('btn_copy')}</button>
+        </div>
+        <pre class="io-json" id="res_${entry.id}">${syntaxHL(entry.response)}</pre>
+      </div>
+    </div>`;
+  prepend ? body.insertBefore(div, body.firstChild) : body.appendChild(div);
+}
+
+function toggleIO(id) {
+  document.getElementById(`iod_${id}`)?.classList.toggle('open');
+}
+
+function copyPre(id, btn) {
+  const text = document.getElementById(id)?.innerText || '';
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = t('btn_copied'); btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = t('btn_copy'); btn.classList.remove('copied'); }, 1500);
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Helpers
+// ══════════════════════════════════════════════════════════════════════════════
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function syntaxHL(data) {
+  if (data == null) return '<span style="color:var(--muted2)">(empty)</span>';
+  let raw;
+  try { raw = JSON.stringify(data, null, 2); } catch { raw = String(data); }
+
+  // Tokenize without pre-escaping so regex sees real quote characters.
+  // We escape individual captured groups inline.
+  const ev = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+  return raw
+    // Keys (quoted strings followed by colon)
+    .replace(/"((?:[^"\\]|\\.)*)"\s*:/g, (_, k) => `<span class="jk">"${ev(k)}"</span>:`)
+    // String values
+    .replace(/:\s*"((?:[^"\\]|\\.)*)"/g, (_, v) => `: <span class="jstr">"${ev(v)}"</span>`)
+    // Numbers
+    .replace(/:\s*(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)(?=[,\n\]}]|$)/g, (_, n) => `: <span class="jnum">${n}</span>`)
+    // Booleans
+    .replace(/:\s*(true|false)(?=[,\n\]}]|$)/g, (_, b) => `: <span class="jbool">${b}</span>`)
+    // Null
+    .replace(/:\s*null(?=[,\n\]}]|$)/g, () => ': <span class="jnull">null</span>')
+    // JSON structural chars ({, }, [, ], ,) never contain < > & so no final escape needed.
+}
+
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+# Build outputs
+*.exe
+*.syso
+*.o
+*.a
+
+# Go build cache
+/vendor/
+
+# Application runtime data
+/configs/app_settings.json
+/configs/presets.ini
+/configs/model_params/
+/configs/env.ini
+
+# llama-server binaries (place in lib/ but do not commit)
+/lib/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE / editor
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+
+# Logs
+*.log
