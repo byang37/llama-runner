@@ -76,6 +76,60 @@
 
 ---
 
+## 目录结构
+
+```
+llama-runner-go/
+├── assets/                        # 文档截图及图片资源
+├── configs/                       # 运行时配置（首次启动自动创建）
+│   ├── app_settings.json          # 服务地址、端口、模型目录、环境变量
+│   ├── presets.ini                # 自动生成的 llama-server 模型预设文件
+│   └── model_params/              # 单个模型的参数配置
+│       └── <model-id>.json        # 每个模型保存的参数
+├── lib/                           # llama-server 二进制文件（推荐放入llama.cpp的所有文件及额外DLLs文件）
+│   ├── llama-server.exe           # Windows 二进制
+│   ├── llama-server               # macOS / Linux 二进制
+│   └── *.dll                      # Windows 依赖 DLL（cuda、ggml 等）
+├── ui/
+│   ├── index.html                 # 单页前端应用
+│   └── i18n/
+│       ├── langs.json             # 语言菜单配置（显示名称 → locale 文件名）
+│       ├── en_us.json             # 英文字符串
+│       └── zh_cn.json             # 简体中文字符串
+├── .github/
+│   ├── workflows/
+│   │   └── release.yml            # CI：跨平台构建与发布工作流
+│   └── release.yml                # 自动生成 Release Notes 的分类配置
+├── dialog_windows.go              # Windows 文件夹选择器（PowerShell）
+├── dialog_unix.go                 # macOS / Linux 文件夹选择器（osascript / zenity）
+├── job_windows.go                 # Windows Job Object，确保子进程随主进程退出
+├── job_stub.go                    # 非 Windows 平台的空实现
+├── main.go                        # 程序入口、嵌入资源、HTTP 服务启动
+├── model_config.go                # 模型发现、配置持久化、presets.ini 生成
+├── platform_windows.go            # Windows：二进制名称、隐藏控制台窗口
+├── platform_unix.go               # macOS / Linux：二进制名称、空实现
+├── process.go                     # LogHub、StatusHub、日志标签辅助函数
+├── proxy.go                       # IOHub、反向代理、请求记录
+├── server.go                      # HTTP 路由处理函数
+├── service.go                     # llama-server 生命周期管理与记录代理
+├── settings.go                    # AppSettings 持久化
+├── webview_windows.go             # WebView2 封装（Windows）
+├── webview_darwin.go              # WKWebView 封装（macOS）
+├── webview_linux.go               # WebKitGTK 封装（Linux）
+├── app.rc                         # Windows 资源脚本（图标 + 版本信息）
+├── icon.ico                       # 应用图标（16/32/48/256 px）
+├── build.bat                      # Windows 构建脚本
+├── build_unix.sh                  # macOS / Linux 构建脚本
+├── go.mod
+├── go.sum
+├── .gitignore
+├── LICENSE
+├── README.md
+└── README.zh-CN.md
+```
+
+---
+
 ## 配置说明
 
 所有配置存储在可执行文件旁的 `configs/` 目录。

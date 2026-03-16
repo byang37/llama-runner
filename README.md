@@ -76,6 +76,60 @@ A lightweight desktop GUI for managing and interacting with [llama.cpp](https://
 
 ---
 
+## Project Structure
+
+```
+llama-runner-go/
+├── assets/                        # Screenshots and images for documentation
+├── configs/                       # Runtime configuration (auto-created on first launch)
+│   ├── app_settings.json          # Service host, port, models directory, env vars
+│   ├── presets.ini                # Auto-generated llama-server model presets
+│   └── model_params/              # Per-model parameter files
+│       └── <model-id>.json        # Saved parameters for each model
+├── lib/                           # llama-server binaries (Recommended: Place all llama.cpp files and extra DLL files here.)
+│   ├── llama-server.exe           # Windows binary
+│   ├── llama-server               # macOS / Linux binary
+│   └── *.dll                      # Windows companion DLLs (cuda, ggml, etc.)
+├── ui/
+│   ├── index.html                 # Single-page frontend application
+│   └── i18n/
+│       ├── langs.json             # Language menu config (display name → locale file)
+│       ├── en_us.json             # English strings
+│       └── zh_cn.json             # Simplified Chinese strings
+├── .github/
+│   ├── workflows/
+│   │   └── release.yml            # CI: cross-platform build and release workflow
+│   └── release.yml                # Changelog category config for auto release notes
+├── dialog_windows.go              # Windows folder picker (PowerShell)
+├── dialog_unix.go                 # macOS / Linux folder picker (osascript / zenity)
+├── job_windows.go                 # Windows Job Object for child process cleanup
+├── job_stub.go                    # No-op stub for non-Windows platforms
+├── main.go                        # Entry point, embedded assets, HTTP server setup
+├── model_config.go                # Model discovery, config persistence, presets.ini generation
+├── platform_windows.go            # Windows: binary name, hide console window
+├── platform_unix.go               # macOS / Linux: binary name, no-op window hide
+├── process.go                     # LogHub, StatusHub, log tag helpers
+├── proxy.go                       # IOHub, reverse proxy, request recording
+├── server.go                      # HTTP route handlers
+├── service.go                     # llama-server lifecycle and recording proxy
+├── settings.go                    # AppSettings persistence
+├── webview_windows.go             # WebView2 wrapper (Windows)
+├── webview_darwin.go              # WKWebView wrapper (macOS)
+├── webview_linux.go               # WebKitGTK wrapper (Linux)
+├── app.rc                         # Windows resource script (icon + version info)
+├── icon.ico                       # Application icon (16/32/48/256 px)
+├── build.bat                      # Windows build script
+├── build_unix.sh                  # macOS / Linux build script
+├── go.mod
+├── go.sum
+├── .gitignore
+├── LICENSE
+├── README.md
+└── README.zh-CN.md
+```
+
+---
+
 ## Configuration
 
 All configuration is stored in the `configs/` folder next to the executable.
