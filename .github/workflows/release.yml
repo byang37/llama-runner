@@ -4,6 +4,11 @@ on:
   push:
     tags:
       - 'v*'
+  pull_request:
+    types:
+      - closed
+    branches:
+      - main
 
 permissions:
   contents: write
@@ -101,16 +106,46 @@ jobs:
           path: llama-runner-macos-amd64.zip
 
   release:
-    needs: [build-windows, build-linux, build-macos]
+    needs: [ build-windows, build-linux, build-macos ]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/download-artifact@v4
         with:
           merge-multiple: true
-      - uses: softprops/action-gh-release@v2
+
+      - name: Generate changelog from commits
+        if: github.event_name == 'push'
+        id: commit_log
+        run: |
+          PREV=$(git tag --sort=-version:refname | sed -n '2p')
+          if [ -z "$PREV" ]; then
+            LOG=$(git log --pretty=format:"- %s (%h)" HEAD)
+          else
+            LOG=$(git log --pretty=format:"- %s (%h)" ${PREV}..HEAD)
+          fi
+          echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
+          echo "$LOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Release (from direct push — commit log)
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
         with:
+          body: ${{ steps.commit_log.outputs.CHANGELOG }}
           files: |
             llama-runner-windows-amd64.exe
             llama-runner-linux-amd64
             llama-runner-macos-amd64.zip
+
+      - name: Release (from PR merge — auto release notes)
+        if: github.event_name != 'push'
+        uses: softprops/action-gh-release@v2
+        with:
           generate_release_notes: true
+          files: |
+            llama-runner-windows-amd64.exe
+            llama-runner-linux-amd64
+            llama-runner-macos-amd64.zip
